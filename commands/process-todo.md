@@ -35,11 +35,23 @@ If no unclaimed todos exist, report that and stop.
 - With `<slug>`: find that specific todo
 - With `--all`: select all unclaimed todos
 
-### 3. Dispatch remote agents
+### 3. Check dispatch prerequisites
+
+Before dispatching, verify GitHub access:
+
+```bash
+gh auth status 2>&1
+```
+
+If this fails (token invalid, TLS errors, network issues), fall back to `--local` mode automatically.
+
+### 4. Dispatch remote agents
 
 For each selected todo, read its full content (frontmatter + body), then dispatch a remote session.
 
-The remote session prompt must be self-contained because the remote VM won't have this plugin installed. Include the todo content and all processing instructions inline:
+The remote session prompt must be self-contained because the remote VM won't have this plugin installed. Include the todo content and all processing instructions inline.
+
+**Important:** Do NOT pass `--print` to `claude --remote` — it is not supported.
 
 ```bash
 claude --remote "You are processing a todo for the todo plugin system.
@@ -107,7 +119,7 @@ The file is at dev_docs/todos/<slug>.md with this content:
 
 When dispatching multiple todos (`--all`), run the `claude --remote` commands in sequence (not background) so the user can see each session ID. Each remote session runs independently in its own cloud VM.
 
-### 4. Report
+### 5. Report
 
 For each dispatched todo, tell the user:
 - The slug and title
@@ -126,7 +138,7 @@ Monitor with /tasks. Each will open a PR when complete.
 
 ## Local mode (`--local`)
 
-When `--local` is specified, or `--remote` is unavailable, process the todo directly in the current session:
+When `--local` is specified, `gh auth status` fails, or `claude --remote` is unavailable, process the todo directly in the current session:
 
 1. Create branch `todo/<slug>` from current HEAD
 2. Claim, execute, validate, delete, commit, push, and open PR as described above

@@ -28,7 +28,7 @@ Repo-native system for capturing follow-up work with full context and processing
 
 **Zero local impact.** No files written, no branches created, no staging. The user keeps working uninterrupted.
 
-**Fallback modes** (in order): `--remote` (cloud VM) → `--pr` (local PR via GitHub API, still zero local git impact) → `--local` (stage into current branch).
+**Fallback modes** (automatic cascade): `--remote` (cloud VM) → `--subagent` (GitHub API via sub-agent, zero local git impact) → `--local` (stage into current branch). If `gh auth status` fails, skip straight to `--local`. Do NOT pass `--print` to `claude --remote`.
 
 ### Process (`/process-todo`)
 

@@ -13,7 +13,7 @@ Capture follow-up work with full context, then dispatch an agent to commit the t
 ### 1. Gather context
 
 Collect automatically (run these in parallel):
-- Current branch: `git branch --show-current`
+- Current branch: `git rev-parse --abbrev-ref HEAD`
 - Repo name: `gh repo view --json nameWithOwner --jq .nameWithOwner`
 - Open PR for this branch (if any): `gh pr view --json number --jq .number 2>/dev/null`
 - Current diff summary: `git diff --stat HEAD`
@@ -34,7 +34,7 @@ From the title, create a kebab-case slug:
 Check if a todo with this slug already exists:
 
 ```bash
-find "$(git rev-parse --show-toplevel)/dev_docs/todos" -name '<slug>.md' 2>/dev/null
+find "$(git rev-parse --show-toplevel)/dev_docs/todos" -name '<slug>.md' -type f 2>/dev/null
 ```
 
 If a collision is found, append `-2`, `-3`, etc. until unique.
@@ -67,14 +67,22 @@ Also ask: **"File for later, or fix now?"**
 
 ### 6. Detect dispatch mode
 
-Check which dispatch mode is available, in order:
+Run these checks to determine which mode is available:
 
 ```bash
-# Check if claude CLI supports --remote
+# Check gh auth first — needed by all non-local modes
+gh auth status 2>&1
+```
+
+If `gh auth status` fails (token invalid, TLS errors, network issues), skip straight to Mode 3 (local).
+
+If gh works, check for remote support:
+
+```bash
 claude --version 2>/dev/null
 ```
 
-If `claude` is available, attempt remote mode. If the remote dispatch itself fails, fall back to sub-agent mode (Agent tool + gh API). This keeps git plumbing out of the main conversation context.
+If `claude` is available, attempt remote mode. If the remote dispatch itself fails, fall through to Mode 2, then Mode 3. **The cascade must be automatic** — if one mode fails, try the next without stopping.
 
 The user can force a mode with `--remote`, `--subagent`, or `--local`.
 
@@ -87,6 +95,8 @@ Use the detected mode to create the todo file on a branch from main and open a P
 #### Mode 1: Remote session (`claude --remote`)
 
 Dispatch a remote Claude session. The remote agent runs in an isolated cloud VM with a fresh clone — zero local impact.
+
+**Important:** Do NOT pass `--print` to `claude --remote` — it is not supported and will error.
 
 ```bash
 claude --remote "You are creating a todo file for the todo plugin system.
@@ -104,7 +114,8 @@ Do the following steps exactly:
    git commit -m 'add todo: <slug>'
    git push -u origin todo/add/<slug>
 
-5. Create a PR:
+5. Ensure the label exists, then create a PR:
+   gh label create todo-add --description 'Auto-generated todo file' --color '1D76DB' 2>/dev/null
    gh pr create --base main --title 'todo: <title>' --label todo-add --body 'Adds a follow-up todo for processing by the todo plugin.
 
 Source branch: <source_branch>
@@ -139,19 +150,27 @@ Delegate to the Agent tool with this prompt:
 > Steps:
 > 1. Get main's latest SHA: `gh api repos/<owner>/<repo>/git/refs/heads/main --jq '.object.sha'`
 > 2. Create branch: `gh api repos/<owner>/<repo>/git/refs --method POST --field ref="refs/heads/todo/add/<slug>" --field sha="$main_sha"`
-> 3. Write the todo file to a temp file, then create it on the branch:
+> 3. Create the file on the branch using the Contents API. Base64-encode the todo content inline:
 >    ```
->    cat > "$TMPDIR/todo-<slug>.md" <<'CONTENT'
->    <todo file content>
->    CONTENT
+>    echo '<todo file content>' | base64 | tr -d '\n' > /dev/null  # just to show the encoding
 >    gh api repos/<owner>/<repo>/contents/dev_docs/todos/<slug>.md \
 >      --method PUT \
 >      --field message="add todo: <slug>" \
->      --field content="$(base64 < "$TMPDIR/todo-<slug>.md" | tr -d '\n')" \
+>      --field content="$(printf '%s' '<todo file content>' | base64 | tr -d '\n')" \
 >      --field branch="todo/add/<slug>"
 >    ```
-> 4. Open PR: `gh pr create --base main --head "todo/add/<slug>" --title "todo: <title>" --label todo-add --body "Adds a follow-up todo.\n\nSource branch: <source_branch>\nPriority: <priority>\nExpires: <expires>"`
+> 4. Ensure label exists and open PR:
+>    ```
+>    gh label create todo-add --description 'Auto-generated todo file' --color '1D76DB' 2>/dev/null
+>    gh pr create --base main --head "todo/add/<slug>" --title "todo: <title>" --label todo-add --body "Adds a follow-up todo.
+>
+>    Source branch: <source_branch>
+>    Priority: <priority>
+>    Expires: <expires>"
+>    ```
 > 5. Report the PR URL.
+>
+> **Important:** Do not use `$TMPDIR` or temp files — the Contents API accepts base64 directly. This avoids sandbox permission issues with temp file writes in sub-agents.
 
 #### Mode 3: Local staging (`--local`)
 
@@ -169,7 +188,7 @@ After the todo file PR is dispatched, also dispatch a processing agent for this 
 - **Remote**: `claude --remote` with the full processing prompt from `/process-todo`
 - **Sub-agent**: Agent tool with processing instructions
 
-The processing agent should wait for the todo-add PR to merge before starting (or branch from the todo-add branch if auto-merge isn't set up).
+**Sequencing:** Do NOT dispatch both in parallel. The processing agent needs the todo file to exist. Dispatch the todo-add agent first. Once it completes (or if using remote, once the `claude --remote` command returns), dispatch the processing agent with `--head todo/add/<slug>` as its base branch instead of main. The processing agent should branch `todo/<slug>` from `todo/add/<slug>` so it has the todo file available even before the add-PR merges.
 
 ### 9. Confirm dispatch
 
@@ -181,11 +200,22 @@ Tell the user:
 
 ### Mode selection summary
 
+**The cascade is automatic.** If a mode fails at dispatch time, fall through to the next without stopping.
+
 ```
-if --remote flag or (claude --remote is available and no override flag):
-    → Mode 1: Remote session
-elif --subagent flag or (--local not specified):
-    → Mode 2: Sub-agent with GitHub API
-else:
+if gh auth status fails:
+    → Mode 3: Local staging (gh is broken, skip Modes 1 and 2)
+
+if --local flag:
     → Mode 3: Local staging
+
+if --remote flag or (claude CLI is available and no override flag):
+    → Try Mode 1: Remote session
+    → On failure, fall through to Mode 2
+
+if --subagent flag or (Mode 1 failed or unavailable):
+    → Try Mode 2: Sub-agent with GitHub API
+    → On failure, fall through to Mode 3
+
+→ Mode 3: Local staging (final fallback, always available)
 ```

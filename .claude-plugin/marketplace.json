@@ -1,0 +1,19 @@
+{
+  "name": "todo-plugin",
+  "description": "Capture and auto-process follow-up work during development",
+  "owner": {
+    "name": "Dan Egan",
+    "url": "https://github.com/bestdan"
+  },
+  "plugins": [
+    {
+      "name": "todo",
+      "description": "Capture follow-up work with full context during development, then process it automatically. Creates structured todo files in any repo and executes them via Claude Code.",
+      "version": "0.1.0",
+      "source": {
+        "source": "url",
+        "url": "https://github.com/bestdan/todo-plugin.git"
+      }
+    }
+  ]
+}

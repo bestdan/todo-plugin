@@ -74,7 +74,10 @@ Run these checks to determine which mode is available:
 gh auth status 2>&1
 ```
 
-If `gh auth status` fails (token invalid, TLS errors, network issues), skip straight to Mode 3 (local).
+If `gh auth status` fails (token invalid, TLS errors, network issues):
+1. Check if the error mentions TLS/x509/certificate — this usually means Claude Code's sandbox is blocking keychain access.
+2. If it looks like a sandbox issue, tell the user: "gh is failing due to sandbox TLS restrictions. You can re-run this command outside sandbox mode, or I'll fall back to local staging."
+3. Skip straight to Mode 3 (local) unless the user opts to exit sandbox.
 
 If gh works, check for remote support:
 

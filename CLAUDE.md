@@ -18,7 +18,8 @@ A Claude Code plugin (`bestdan/todo-plugin`) that captures follow-up work during
 | Command | File | What it does |
 |---------|------|-------------|
 | `/add-todo` | `commands/add-todo.md` | Captures a todo, dispatches remote agent to commit it on a branch from main |
-| `/process-todo` | `commands/process-todo.md` | Claims and executes unclaimed todos via remote agents |
+| `/implement-todo` | `commands/implement-todo.md` | Claims and implements a single todo — dedup-safe for concurrent agents |
+| `/manage-todo` | `commands/manage-todo.md` | Queue orchestrator — scans, dedup-checks, dispatches `/implement-todo`. Safe for scheduled jobs |
 | `/list-todos` | `commands/list-todos.md` | Shows all todos with status, priority, tags |
 
 ## Key conventions

@@ -70,12 +70,11 @@ Also ask: **"File for later, or fix now?"**
 Check which dispatch mode is available, in order:
 
 ```bash
-# Check if claude --remote is enabled for this repo
-claude --remote --help 2>/dev/null
+# Check if claude CLI supports --remote
+claude --version 2>/dev/null
 ```
 
-If `claude --remote` works → use remote mode.
-If not → use sub-agent mode (Agent tool + gh API). This keeps git plumbing out of the main conversation context.
+If `claude` is available, attempt remote mode. If the remote dispatch itself fails, fall back to sub-agent mode (Agent tool + gh API). This keeps git plumbing out of the main conversation context.
 
 The user can force a mode with `--remote`, `--subagent`, or `--local`.
 
@@ -148,7 +147,7 @@ Delegate to the Agent tool with this prompt:
 >    gh api repos/<owner>/<repo>/contents/dev_docs/todos/<slug>.md \
 >      --method PUT \
 >      --field message="add todo: <slug>" \
->      --field content="$(base64 -i "$TMPDIR/todo-<slug>.md")" \
+>      --field content="$(base64 < "$TMPDIR/todo-<slug>.md" | tr -d '\n')" \
 >      --field branch="todo/add/<slug>"
 >    ```
 > 4. Open PR: `gh pr create --base main --head "todo/add/<slug>" --title "todo: <title>" --label todo-add --body "Adds a follow-up todo.\n\nSource branch: <source_branch>\nPriority: <priority>\nExpires: <expires>"`

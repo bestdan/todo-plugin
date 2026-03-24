@@ -145,7 +145,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 ```
 
-**Note:** If branch protection requires reviews, you'll need either a PAT/GitHub App token for the approve step, or a CODEOWNERS rule that doesn't require review for `dev_docs/todos/`.
+> **Warning:** `GITHUB_TOKEN` cannot approve its own PR if branch protection requires reviews. You'll need either a PAT/GitHub App token for the approve step, or a CODEOWNERS rule that doesn't require review for `dev_docs/todos/`.
 
 ## Scheduled processing (optional)
 

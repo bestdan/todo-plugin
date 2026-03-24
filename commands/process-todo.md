@@ -70,7 +70,7 @@ The file is at dev_docs/todos/<slug>.md with this content:
    git rm dev_docs/todos/<slug>.md
 
 5. COMMIT and PUSH:
-   git add -A
+   git add only the files you changed (do NOT use git add -A — it may pick up untracked artifacts)
    git commit -m 'chore(todo): <title from frontmatter>
 
    Automated follow-up from todo <slug>.md.

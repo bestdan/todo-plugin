@@ -11,7 +11,7 @@ Repo-native system for capturing follow-up work with full context and processing
 
 - User notices incidental work during a feature branch (stale flags, dead code, missing tests)
 - User says "todo", "follow-up", "we should come back to this", "add a todo for this"
-- User runs `/add-todo` or `/process-todo`
+- User runs `/add-todo`, `/implement-todo`, or `/manage-todo`
 
 ## How it works
 
@@ -30,15 +30,34 @@ Repo-native system for capturing follow-up work with full context and processing
 
 **Fallback modes** (automatic cascade): `--remote` (cloud VM) → `--subagent` (GitHub API via sub-agent, zero local git impact) → `--local` (stage into current branch). If `gh auth status` fails, skip straight to `--local`. Do NOT pass `--print` to `claude --remote`.
 
-### Process (`/process-todo`)
+### Implement (`/implement-todo <slug>`)
 
-1. Scans `dev_docs/todos/**/*.md` for unclaimed todos
-2. For each selected todo, dispatches a remote Claude session that:
-   - Claims the todo (branch `todo/<slug>`, sets `status: claimed`)
-   - Does the work described in the Task section
+Focused on a single todo item. Claims it, does the work, opens a PR:
+
+1. Validates the todo exists and is `unclaimed`
+2. Checks if branch `todo/<slug>` already exists (dedup guard)
+3. Dispatches a remote agent that:
+   - **Claims immediately**: creates branch `todo/<slug>`, sets `status: claimed`, pushes right away — before doing any work
+   - If push fails (branch exists), stops — another agent got there first
+   - Executes the work described in the Task section
    - Deletes the todo file
    - Opens a PR labeled `todo-loop`
-3. Multiple todos can be dispatched in parallel — each gets its own cloud VM
+
+The early claim-and-push is the key difference from the old `/process-todo`: it prevents duplicate work by making the claim visible to other agents immediately.
+
+### Manage (`/manage-todo`)
+
+Queue orchestrator. Safe for repeated/scheduled execution — will never create duplicate PRs:
+
+1. Scans `dev_docs/todos/**/*.md` for unclaimed todos
+2. **Dedup check**: for each candidate, checks `git ls-remote` for existing `todo/<slug>` branches and open PRs — skips any already in progress
+3. Dispatches `/implement-todo` for each selected candidate
+4. Reports queue status
+
+Three layers of dedup protection:
+- Queue scan: only picks `status: unclaimed` todos
+- Branch-exists check: `git ls-remote` before dispatch
+- Push-time guard: `implement-todo`'s atomic push fails if branch exists
 
 ### List (`/list-todos`)
 
@@ -110,6 +129,8 @@ unclaimed --> claimed --> PR opened --> merged (todo file deleted)
     +--> expired (auto-pruned after 30 days)
 ```
 
+Claiming happens at branch-push time, not at PR-merge time. This ensures the todo is locked as soon as an agent starts working on it.
+
 ## Branch naming
 
 Two namespaces to avoid collisions:
@@ -121,14 +142,18 @@ Two namespaces to avoid collisions:
 
 Always scan recursively: `dev_docs/todos/**/*.md`. Subdirectories are optional organizational structure.
 
-## Race conditions
+## Race conditions and scheduled job safety
 
-Each remote session gets its own isolated VM with a fresh clone. Filesystem races are impossible. The only contention point is `git push`:
+The system is designed to be safe under concurrent and repeated execution (e.g., scheduled Claude Code web jobs running every 8 hours).
 
-1. Branch names are deterministic: `todo/<slug>`
-2. `git push` is atomic — second push fails
-3. On push failure, skip this todo and move to the next unclaimed one
+**Three layers of dedup:**
+
+1. **Queue-level** (`/manage-todo`): Checks `git ls-remote` for existing `todo/<slug>` branches before dispatching. Skips any todo that already has a branch.
+2. **Claim-level** (`/implement-todo`): The remote agent's first action is to create the branch and push a claim commit. `git push` is atomic — only the first agent succeeds.
+3. **Status-level**: Todo files track `status: unclaimed/claimed/blocked`. Only `unclaimed` todos are candidates.
+
+Each remote session gets its own isolated VM with a fresh clone. Filesystem races are impossible. The only contention point is `git push`, which is atomic.
 
 ## Remote session notes
 
-Remote sessions (`claude --remote`) run in cloud VMs and don't have access to locally-installed plugins. The `/add-todo` and `/process-todo` commands handle this by embedding all necessary instructions directly in the remote prompt. The remote agent doesn't need to know about this plugin — it just follows the instructions in its prompt.
+Remote sessions (`claude --remote`) run in cloud VMs and don't have access to locally-installed plugins. The `/implement-todo` and `/add-todo` commands handle this by embedding all necessary instructions directly in the remote prompt. The remote agent doesn't need to know about this plugin — it just follows the instructions in its prompt.

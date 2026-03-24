@@ -43,7 +43,10 @@ Before dispatching, verify GitHub access:
 gh auth status 2>&1
 ```
 
-If this fails (token invalid, TLS errors, network issues), fall back to `--local` mode automatically.
+If this fails (token invalid, TLS errors, network issues):
+1. Check if the error mentions TLS/x509/certificate — this usually means Claude Code's sandbox is blocking keychain access.
+2. If it looks like a sandbox issue, tell the user: "gh is failing due to sandbox TLS restrictions. You can re-run this command outside sandbox mode, or I'll fall back to local processing."
+3. Fall back to `--local` mode automatically unless the user opts to exit sandbox.
 
 ### 4. Dispatch remote agents
 

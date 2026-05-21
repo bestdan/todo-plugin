@@ -30,9 +30,10 @@ Claude automatically recognizes when you mention follow-up work, deferred cleanu
 
 | Command          | Description                                                         |
 | ---------------- | ------------------------------------------------------------------- |
-| `/add-todo`      | Capture follow-up work — dispatches a remote agent to commit it     |
+| `/add-todo`      | Capture follow-up work — delivers it via the configured handler     |
 | `/process-todo`  | Process unclaimed todos — dispatches remote agents to do the work   |
 | `/list-todos`    | Show all todos with status, priority, and tags                      |
+| `/todo-config`   | Configure where `/add-todo` delivers todos (repo PR, GitHub, Jira)  |
 
 ## How it works
 

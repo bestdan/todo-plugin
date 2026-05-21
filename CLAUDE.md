@@ -21,6 +21,7 @@ A Claude Code plugin (`bestdan/todo-plugin`) that captures follow-up work during
 | `/add-todo` | `commands/add-todo.md` | Captures a todo, then delivers it via the configured handler (default `repo-pr`) |
 | `/process-todo` | `commands/process-todo.md` | Claims and executes unclaimed todos via remote agents |
 | `/list-todos` | `commands/list-todos.md` | Shows all todos with status, priority, tags |
+| `/todo-config` | `commands/todo-config.md` | Configures the `/add-todo` destination handler (writes `dev_docs/todos/.todo-config.yml`) |
 
 ## Key conventions
 

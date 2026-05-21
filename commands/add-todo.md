@@ -1,6 +1,6 @@
 ---
 description: Capture follow-up work as a structured todo, then deliver it to the configured destination (repo PR, GitHub issue, or Jira)
-allowed-tools: Bash(git *), Bash(gh *), Bash(claude *), Bash(date *), Bash(cat *), Glob, Grep, Read, Agent
+allowed-tools: Bash(git *), Bash(gh *), Bash(claude *), Bash(date *), Bash(cat *), Bash(acli *), Bash(command *), Glob, Grep, Read, Agent
 argument-hint: [description of the follow-up work]
 ---
 
@@ -101,7 +101,7 @@ Resolve the handler name:
 - `handler: repo-pr | gh-issue | jira` → use that handler's section under **## Handlers**.
 - Any other (unknown) value → **stop** and tell the user: "Unknown todo handler `<value>` in dev_docs/todos/.todo-config.yml. Valid values: repo-pr, gh-issue, jira. Run /todo-config to set it." Do not silently fall back.
 
-> `repo-pr` and `gh-issue` are implemented below. `jira` is added in a later step; until then, resolving to it should report that the handler is not yet implemented.
+> `repo-pr`, `gh-issue`, and `jira` are all implemented below.
 
 ### 7. Deliver via the handler
 
@@ -326,5 +326,72 @@ gh-issue:
    (Omit `--repo` to use the current repo; omit `--label`/`--assignee` flags that have no configured values.)
 
 5. **Return the URL.** `gh issue create` prints the new issue URL to stdout — capture it and return it as this handler's artifact URL for step 8.
+
+This handler does **not** create any `dev_docs/todos/*.md` file, branch, or PR.
+
+### Handler: jira
+
+Creates a Jira work item via the official Atlassian CLI (`acli` — the Rovo/Atlassian CLI, **not** the old go-jira community `jira` CLI). Foreground call, no git plumbing. The new ticket is placed under a selected epic.
+
+Config block in `dev_docs/todos/.todo-config.yml`:
+
+```yaml
+handler: jira
+jira:
+  site: mycompany.atlassian.net   # used to build the browse URL and by /todo-config for auth
+  project: PLAT                   # required — project key
+  issue_type: Task                # default Task
+  default_epic: PLAT-100          # optional; skips the epic prompt
+  labels: []                      # optional
+```
+
+> **Developer note (verify on an authenticated machine):** `acli` is not installed in the dev sandbox where this was written, so the exact JSON shapes below are unverified against a live instance. Two things to confirm and adjust:
+> 1. `acli jira workitem search` — confirm the subcommand name (vs `list`), the JQL flag spelling, and the JSON field holding each epic's key/summary.
+> 2. `acli jira workitem create --json` — confirm the JSON field holding the created issue key/URL.
+> Keep the parsing tolerant (try JSON, else scrape a `KEY-123` pattern from stdout) until confirmed.
+
+#### Steps
+
+1. **Preflight.** Check the CLI is installed and authenticated:
+
+   ```bash
+   command -v acli || echo "MISSING"
+   ```
+
+   - If missing, **stop** with: "Jira handler needs the Atlassian CLI. Install: `brew tap atlassian/homebrew-acli && brew install acli`, then run `/todo-config` to authenticate."
+   - If installed, check auth (e.g. `acli jira auth status` if available); if not authenticated, point the user to `/todo-config`. Either way, **do not** fall back to another handler.
+
+2. **Select the epic.** If `jira.default_epic` is set, use it and skip the prompt. Otherwise list the project's open epics and let the user pick one (or choose "none" for a top-level ticket):
+
+   ```bash
+   acli jira workitem search \
+     --jql 'project = "<project>" AND issuetype = Epic AND statusCategory != Done' \
+     --json
+   ```
+
+   Present the epic keys + summaries; capture the chosen `<EPIC-KEY>`.
+
+3. **Write the description to a file.** Use the drafted todo's `body` plus a source footer (omit empty lines), written to a temp file — this avoids shell-quoting and ADF-escaping problems with multi-line markdown:
+
+   ```
+   ---
+   Source branch: <source_branch>
+   Source PR: #<source_pr>
+   ```
+
+4. **Create the work item.** Map the drafted todo: `--summary` ← `title`, description ← the file from step 3, `--project`/`--type` ← config, `--parent` ← chosen epic (omit if "none"), `--label` ← each `jira.labels`:
+
+   ```bash
+   acli jira workitem create \
+     --project "<project>" \
+     --type "<issue_type>" \
+     --summary "<title>" \
+     --description-file "<path-to-body>" \
+     --parent "<EPIC-KEY>" \
+     --label "<label>" \
+     --json
+   ```
+
+5. **Return the URL.** Parse the created issue key from the `--json` output (fall back to scraping `KEY-123` from stdout), then build `https://<site>/browse/<KEY>` and return it as this handler's artifact URL for step 8.
 
 This handler does **not** create any `dev_docs/todos/*.md` file, branch, or PR.

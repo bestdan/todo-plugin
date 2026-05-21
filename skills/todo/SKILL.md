@@ -60,7 +60,23 @@ gh-issue:
 
 Requires working `gh` auth; on auth failure it stops with guidance rather than falling back. The drafted todo's body plus a source-branch/PR footer becomes the issue body; the handler returns the new issue URL.
 
-> The `jira` handler and the `/todo-config` setup command are added in later steps.
+#### Handler: `jira`
+
+Creates a Jira work item via the Atlassian CLI (`acli jira workitem create`), placed under a selected epic. Config:
+
+```yaml
+handler: jira
+jira:
+  site: mycompany.atlassian.net
+  project: PLAT            # required
+  issue_type: Task         # default Task
+  default_epic: PLAT-100   # optional; skips the epic prompt
+  labels: []
+```
+
+Requires `acli` installed and authenticated (`/todo-config` guides setup); stops with install/auth guidance otherwise. Lists the project's open epics for the user to pick a parent, maps the drafted todo to summary + description (with source footer, via `--description-file`), and returns the `https://<site>/browse/<KEY>` URL.
+
+> The `/todo-config` setup command is added in a later step.
 
 ### Process (`/process-todo`)
 

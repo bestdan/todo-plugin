@@ -18,17 +18,35 @@ Repo-native system for capturing follow-up work with full context and processing
 ### Capture (`/add-todo`)
 
 1. Gathers context from the current session (branch, diff, PR, conversation)
-2. Drafts a structured todo file, presents it for user review
-3. Dispatches a remote Claude session (`claude --remote`) to:
-   - Create a branch from main (`todo/add/<slug>`)
-   - Write the todo file to `dev_docs/todos/<slug>.md`
-   - Open a PR labeled `todo-add`
-4. An auto-merge workflow merges the PR (it only touches `dev_docs/todos/`)
-5. The todo lands on main, decoupled from the feature branch
+2. Drafts a structured todo, presents it for user review
+3. Resolves the **handler** from `dev_docs/todos/.todo-config.yml` (absent → `repo-pr`)
+4. Delivers the todo via that handler and reports the artifact URL
 
-**Zero local impact.** No files written, no branches created, no staging. The user keeps working uninterrupted.
+Capture is destination-agnostic; only the handler decides where the todo lands.
 
-**Fallback modes** (automatic cascade): `--remote` (cloud VM) → `--subagent` (GitHub API via sub-agent, zero local git impact) → `--local` (stage into current branch). If `gh auth status` fails, skip straight to `--local`. Do NOT pass `--print` to `claude --remote`.
+### Handlers and config
+
+The delivery destination is a **handler** named in a repo-committed config file, `dev_docs/todos/.todo-config.yml`:
+
+```yaml
+handler: repo-pr   # repo-pr (default) | gh-issue | jira
+# handler-specific blocks (gh-issue / jira) live under their own keys
+```
+
+Resolution: file absent or no `handler:` → `repo-pr`; unknown value → `/add-todo` stops and points to `/todo-config`. Every handler receives the same drafted todo (`title`, body, `priority`, `tags`, `source_branch`, `source_pr`, …) and returns the URL of what it created.
+
+#### Handler: `repo-pr` (default)
+
+Reproduces the original behavior. Dispatches an agent to:
+- Create a branch from main (`todo/add/<slug>`)
+- Write the todo file to `dev_docs/todos/<slug>.md`
+- Open a PR labeled `todo-add` (an auto-merge workflow lands it on main, decoupled from the feature branch)
+
+**Zero local impact.** No files written, no branches created, no staging.
+
+**Fallback modes** (automatic cascade, `repo-pr` only): `--remote` (cloud VM) → `--subagent` (GitHub API via sub-agent, zero local git impact) → `--local` (stage into current branch). If `gh auth status` fails, skip straight to `--local`. Do NOT pass `--print` to `claude --remote`. This cascade applies only to `repo-pr`; other handlers are single foreground CLI calls.
+
+> `gh-issue` and `jira` handlers, plus the `/todo-config` setup command, are added in later steps.
 
 ### Process (`/process-todo`)
 

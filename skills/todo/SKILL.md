@@ -76,7 +76,11 @@ jira:
 
 Requires the Atlassian MCP to be connected in Claude Code and the configured `site` to be in the user's accessible resources; stops with guidance otherwise. Lists the project's open epics via JQL for the user to pick a parent, maps the drafted todo to summary + description (with source footer), and returns the `https://<site>/browse/<KEY>` URL.
 
-> The `/todo-config` setup command is added in a later step.
+#### Setup: `/todo-config`
+
+Configures the handler and writes `dev_docs/todos/.todo-config.yml`. Shows the current config, prompts for the destination, verifies prerequisites (`gh` auth / `acli` install + auth), and delegates interactive logins to the user. Run it before using a non-default handler.
+
+> **`/process-todo` and `/list-todos` only operate on `repo-pr` (file-based) todos.** For the `gh-issue` and `jira` handlers, lifecycle and tracking live in the external tool — read-back/sync is out of scope.
 
 ### Process (`/process-todo`)
 

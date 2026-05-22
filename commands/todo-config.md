@@ -1,6 +1,6 @@
 ---
 description: Configure where /add-todo delivers todos (repo PR, GitHub issue, or Jira)
-allowed-tools: Bash(git *), Bash(gh *), Bash(cat *), Bash(mkdir *), Read, Write, mcp__claude_ai_Atlassian__getAccessibleAtlassianResources, mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql
+allowed-tools: Bash(git *), Bash(gh *), Bash(cat *), Bash(mkdir *), Read, Write, mcp__claude_ai_Atlassian__getAccessibleAtlassianResources, mcp__claude_ai_Atlassian__getVisibleJiraProjects, mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql
 argument-hint: [repo-pr | gh-issue | jira]
 ---
 
@@ -57,8 +57,12 @@ The `jira` handler delivers via the Atlassian MCP server (`mcp__claude_ai_Atlass
    - Exactly one resource → use that site directly; tell the user which one you picked.
    - Multiple resources → ask the user which site to use via `AskUserQuestion` (one option per resource).
    Never prompt the user to type a site that doesn't appear in the accessible-resources list.
-3. Prompt for `project` (key, required) and `issue_type` (default `Task`). Optional `labels`.
-4. **Resolve `default_epic` against real epics — do not accept free-text.** This field is optional but, when set, must be a valid epic key in the chosen project (otherwise it silently breaks `/add-todo`, which uses it to skip the per-todo epic prompt).
+3. Resolve `project` against visible projects. Call `mcp__claude_ai_Atlassian__getVisibleJiraProjects` with `cloudId: <site>`.
+   - Exactly one project → use it; tell the user which one you picked.
+   - Multiple projects → ask via `AskUserQuestion` (one option per project, labeled `<KEY> — <name>`; cap at 4, "Other" lets the user type a key, which you then re-validate against the visible-projects list).
+   - Never prompt the user to type a project key blind.
+4. Ask for `issue_type` via `AskUserQuestion` (header: "Issue type") with options `Task` (recommended, first), `Story`, `Bug`. Use "Other" for anything else. Default is `Task` if the user skips.
+5. **Resolve `default_epic` against real epics — do not accept free-text.** This field is optional but, when set, must be a valid epic key in the chosen project (otherwise it silently breaks `/add-todo`, which uses it to skip the per-todo epic prompt).
 
    Call `mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql` with:
    - `cloudId`: `<site>`
@@ -72,6 +76,10 @@ The `jira` handler delivers via the Atlassian MCP server (`mcp__claude_ai_Atlass
    - "Other" lets the user type a specific key; if they pick "Other", validate the typed value by calling `searchJiraIssuesUsingJql` again with `jql: project = "<project>" AND key = "<TYPED>" AND issuetype = Epic`. If the result is empty, push back ("`<TYPED>` is not an epic key in `<project>`") and re-ask. Do not write the config with an unvalidated key.
 
    If the user picks "None — prompt me per-todo", omit `default_epic` from the written config. Otherwise write the validated key as-is.
+
+6. Optional `labels` — ask the user as plain text (comma-separated list); skip if blank. Do not use `AskUserQuestion` here.
+
+> **AskUserQuestion rule:** every call needs ≥2 options. If a step would only have one (e.g. a single visible project or site), use it directly and tell the user — don't try to ask.
 
 > **Interactive auth caveat:** `gh auth login` is interactive — never run it headless from inside this command. Always have the user run it with the `!` session prefix, then continue once they report success.
 

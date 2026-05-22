@@ -62,7 +62,7 @@ Requires working `gh` auth; on auth failure it stops with guidance rather than f
 
 #### Handler: `jira`
 
-Creates a Jira work item via the Atlassian CLI (`acli jira workitem create`), placed under a selected epic. Config:
+Creates a Jira work item via the Atlassian MCP server (`mcp__claude_ai_Atlassian__createJiraIssue`), placed under a selected epic. Config:
 
 ```yaml
 handler: jira
@@ -74,7 +74,7 @@ jira:
   labels: []
 ```
 
-Requires `acli` installed and authenticated (`/todo-config` guides setup); stops with install/auth guidance otherwise. Lists the project's open epics for the user to pick a parent, maps the drafted todo to summary + description (with source footer, via `--description-file`), and returns the `https://<site>/browse/<KEY>` URL.
+Requires the Atlassian MCP to be connected in Claude Code and the configured `site` to be in the user's accessible resources; stops with guidance otherwise. Lists the project's open epics via JQL for the user to pick a parent, maps the drafted todo to summary + description (with source footer), and returns the `https://<site>/browse/<KEY>` URL.
 
 > The `/todo-config` setup command is added in a later step.
 

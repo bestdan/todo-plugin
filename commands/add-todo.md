@@ -1,6 +1,6 @@
 ---
 description: Capture follow-up work as a structured todo, then deliver it to the configured destination (repo PR, GitHub issue, or Jira)
-allowed-tools: Bash(git *), Bash(gh *), Bash(claude *), Bash(date *), Bash(cat *), Bash(acli *), Bash(command *), Glob, Grep, Read, Agent
+allowed-tools: Bash(git *), Bash(gh *), Bash(claude *), Bash(date *), Bash(cat *), Glob, Grep, Read, Agent, mcp__claude_ai_Atlassian__getAccessibleAtlassianResources, mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql, mcp__claude_ai_Atlassian__createJiraIssue
 argument-hint: [description of the follow-up work]
 ---
 
@@ -331,67 +331,60 @@ This handler does **not** create any `dev_docs/todos/*.md` file, branch, or PR.
 
 ### Handler: jira
 
-Creates a Jira work item via the official Atlassian CLI (`acli` — the Rovo/Atlassian CLI, **not** the old go-jira community `jira` CLI). Foreground call, no git plumbing. The new ticket is placed under a selected epic.
+Creates a Jira work item via the Atlassian MCP server (`mcp__claude_ai_Atlassian__*`). Foreground call, no git plumbing, no CLI install. The new ticket is placed under a selected epic.
 
 Config block in `dev_docs/todos/.todo-config.yml`:
 
 ```yaml
 handler: jira
 jira:
-  site: mycompany.atlassian.net   # used to build the browse URL and by /todo-config for auth
+  site: mycompany.atlassian.net   # used as cloudId and to build the browse URL
   project: PLAT                   # required — project key
   issue_type: Task                # default Task
   default_epic: PLAT-100          # optional; skips the epic prompt
-  labels: []                      # optional
+  labels: []                      # optional — passed via additional_fields.labels
 ```
 
-> **Developer note (verify on an authenticated machine):** `acli` is not installed in the dev sandbox where this was written, so the exact JSON shapes below are unverified against a live instance. Two things to confirm and adjust:
-> 1. `acli jira workitem search` — confirm the subcommand name (vs `list`), the JQL flag spelling, and the JSON field holding each epic's key/summary.
-> 2. `acli jira workitem create --json` — confirm the JSON field holding the created issue key/URL.
-> Keep the parsing tolerant (try JSON, else scrape a `KEY-123` pattern from stdout) until confirmed.
+`site` is passed directly as `cloudId` to the MCP tools (they accept either a UUID or a site URL/hostname).
 
 #### Steps
 
-1. **Preflight.** Check the CLI is installed and authenticated:
+1. **Preflight.** Confirm the Atlassian MCP is reachable and the configured site is accessible:
 
-   ```bash
-   command -v acli || echo "MISSING"
-   ```
+   Call `mcp__claude_ai_Atlassian__getAccessibleAtlassianResources` (no args).
+   - If the tool errors or returns no resources, **stop** with: "Jira handler needs the Atlassian MCP. Install/connect it in Claude Code settings, then re-run." Do not fall back to another handler.
+   - If the response does not include a resource whose `url` matches `https://<jira.site>`, **stop** with: "Configured Jira site `<site>` is not in your accessible Atlassian resources." (List the URLs that were returned.)
 
-   - If missing, **stop** with: "Jira handler needs the Atlassian CLI. Install: `brew tap atlassian/homebrew-acli && brew install acli`, then run `/todo-config` to authenticate."
-   - If installed, check auth (e.g. `acli jira auth status` if available); if not authenticated, point the user to `/todo-config`. Either way, **do not** fall back to another handler.
+2. **Select the epic.** If `jira.default_epic` is set, use it and skip the prompt. Otherwise list the project's open epics for the user to pick (or choose "none" for a top-level ticket):
 
-2. **Select the epic.** If `jira.default_epic` is set, use it and skip the prompt. Otherwise list the project's open epics and let the user pick one (or choose "none" for a top-level ticket):
+   Call `mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql` with:
+   - `cloudId`: `<jira.site>`
+   - `jql`: `project = "<project>" AND issuetype = Epic AND statusCategory != Done ORDER BY updated DESC`
+   - `fields`: `["summary", "status"]`
+   - `maxResults`: 50
 
-   ```bash
-   acli jira workitem search \
-     --jql 'project = "<project>" AND issuetype = Epic AND statusCategory != Done' \
-     --json
-   ```
+   The response wraps issues as `issues.nodes[]`; each node has `key`, `fields.summary`, `fields.status.name`, and a ready-made `webUrl`. Present each as a numbered list (`key — summary [status]`); capture the chosen `<EPIC-KEY>`.
 
-   Present the epic keys + summaries; capture the chosen `<EPIC-KEY>`.
-
-3. **Write the description to a file.** Use the drafted todo's `body` plus a source footer (omit empty lines), written to a temp file — this avoids shell-quoting and ADF-escaping problems with multi-line markdown:
+3. **Compose the description.** Use the drafted todo's `body` plus a source footer (omit empty lines):
 
    ```
+   <body>
+
    ---
    Source branch: <source_branch>
    Source PR: #<source_pr>
    ```
 
-4. **Create the work item.** Map the drafted todo: `--summary` ← `title`, description ← the file from step 3, `--project`/`--type` ← config, `--parent` ← chosen epic (omit if "none"), `--label` ← each `jira.labels`:
+4. **Create the work item.** Call `mcp__claude_ai_Atlassian__createJiraIssue` with:
+   - `cloudId`: `<jira.site>`
+   - `projectKey`: `<project>`
+   - `issueTypeName`: `<issue_type>` (default `Task`)
+   - `summary`: the drafted `title`
+   - `description`: the composed description from step 3
+   - `contentFormat`: `"markdown"`
+   - `parent`: the chosen `<EPIC-KEY>` (omit entirely if the user picked "none")
+   - `additional_fields`: `{ "labels": [...jira.labels] }` (omit if no labels configured)
 
-   ```bash
-   acli jira workitem create \
-     --project "<project>" \
-     --type "<issue_type>" \
-     --summary "<title>" \
-     --description-file "<path-to-body>" \
-     --parent "<EPIC-KEY>" \
-     --label "<label>" \
-     --json
-   ```
-
-5. **Return the URL.** Parse the created issue key from the `--json` output (fall back to scraping `KEY-123` from stdout), then build `https://<site>/browse/<KEY>` and return it as this handler's artifact URL for step 8.
+5. **Return the URL.** The response wraps the new issue as `issues.nodes[0]`. Return `issues.nodes[0].webUrl` directly as this handler's artifact URL for step 8. (Fallback: build `https://<jira.site>/browse/<issues.nodes[0].key>` if `webUrl` is missing.)
 
 This handler does **not** create any `dev_docs/todos/*.md` file, branch, or PR.

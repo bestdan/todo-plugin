@@ -30,9 +30,10 @@ Claude automatically recognizes when you mention follow-up work, deferred cleanu
 
 | Command          | Description                                                         |
 | ---------------- | ------------------------------------------------------------------- |
-| `/add-todo`      | Capture follow-up work — dispatches a remote agent to commit it     |
+| `/add-todo`      | Capture follow-up work — delivers it via the configured handler     |
 | `/process-todo`  | Process unclaimed todos — dispatches remote agents to do the work   |
 | `/list-todos`    | Show all todos with status, priority, and tags                      |
+| `/todo-config`   | Configure where `/add-todo` delivers todos (repo PR, GitHub, Jira)  |
 
 ## How it works
 
@@ -51,6 +52,8 @@ While on a feature branch, run `/add-todo Remove the stale foobar alias`. The pl
 **Zero local impact.** No files staged, no branches touched. You keep working. The todo lands on main via auto-merge, completely decoupled from your feature PR.
 
 **Fallback modes:** `--remote` (cloud VM) → `--pr` (creates PR via GitHub API without touching local git) → `--local` (stages into current branch). Force a mode with the corresponding flag.
+
+The flow above is the default `repo-pr` handler. Configure a different destination with `/todo-config` — `gh-issue` and `jira` deliver via a single foreground call (no branch, no PR, no fallback cascade).
 
 ### Process: `/process-todo`
 

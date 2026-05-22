@@ -1,6 +1,6 @@
 ---
 description: Configure where /add-todo delivers todos (repo PR, GitHub issue, or Jira)
-allowed-tools: Bash(git *), Bash(gh *), Bash(acli *), Bash(command *), Bash(brew *), Bash(cat *), Bash(mkdir *), Read, Write
+allowed-tools: Bash(git *), Bash(gh *), Bash(cat *), Bash(mkdir *), Read, Write, mcp__claude_ai_Atlassian__getAccessibleAtlassianResources
 argument-hint: [repo-pr | gh-issue | jira]
 ---
 
@@ -8,7 +8,7 @@ argument-hint: [repo-pr | gh-issue | jira]
 
 Set up the destination handler for `/add-todo` in this repo. Writes `dev_docs/todos/.todo-config.yml`, which `/add-todo` reads to decide where a captured todo lands. The file is **repo-committed and shared by the team** — everyone in the repo files to the same destination.
 
-See the handler definitions in `commands/add-todo.md` (the `## Handlers` section) for what each destination does.
+See the handler files in `commands/handlers/<handler>.md` for what each destination does.
 
 ## Steps
 
@@ -42,31 +42,22 @@ No prerequisites. Mention the optional auto-merge workflow (see `README.md`) for
    - TLS/x509/certificate error → likely the sandbox blocking keychain access; tell the user to re-run outside sandbox mode.
    - Otherwise → ask the user to authenticate. `gh auth login` is interactive: have them run it via the session prefix, e.g. `! gh auth login`, then continue.
    - Do not write the config until `gh auth status` succeeds.
-2. Prompt for (all optional except none are required):
+2. Prompt for the following optional settings:
    - `repo` — default the current repo (`gh repo view --json nameWithOwner --jq .nameWithOwner`)
    - `labels` — list, e.g. `[follow-up]`
    - `assignees` — list of GitHub usernames
 
 #### jira
 
-1. Check the CLI: `command -v acli || echo MISSING`. If missing, offer the install commands and stop until installed:
+The `jira` handler delivers via the Atlassian MCP server (`mcp__claude_ai_Atlassian__*`) — no CLI to install.
 
-   ```bash
-   brew tap atlassian/homebrew-acli && brew install acli
-   ```
+1. Prompt for `site` (e.g. `mycompany.atlassian.net`).
+2. Verify the Atlassian MCP is reachable and the site is accessible. Call `mcp__claude_ai_Atlassian__getAccessibleAtlassianResources` (no args).
+   - If the tool errors or returns no resources, **stop** with: "Jira handler needs the Atlassian MCP. Install/connect it in Claude Code settings, then re-run `/todo-config jira`." Do not write the config.
+   - If the response does not include a resource whose `url` matches `https://<site>`, **stop** with: "Configured Jira site `<site>` is not in your accessible Atlassian resources." (List the URLs that were returned.) Do not write the config.
+3. Prompt for `project` (key, required), `issue_type` (default `Task`), optional `default_epic` (explicit epic key, not a name), optional `labels`.
 
-2. Prompt for `site` (e.g. `mycompany.atlassian.net`), then guide auth. `acli jira auth login` is interactive — have the user run it via the session prefix:
-
-   ```bash
-   ! acli jira auth login --site <site> --email <email> --token   # paste API token when prompted
-   # or, for browser OAuth:
-   ! acli jira auth login --web
-   ```
-
-   Verify auth succeeds (e.g. `acli jira auth status` if available) before writing.
-3. Prompt for `project` (key, required), `issue_type` (default `Task`), optional `default_epic`, optional `labels`.
-
-> **Interactive auth caveat:** never try to run `gh auth login` or `acli jira auth login` headless from inside this command — they prompt for input. Always have the user run them with the `!` session prefix, then continue once they report success.
+> **Interactive auth caveat:** `gh auth login` is interactive — never run it headless from inside this command. Always have the user run it with the `!` session prefix, then continue once they report success.
 
 ### 4. Write the config
 

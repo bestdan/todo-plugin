@@ -53,6 +53,8 @@ While on a feature branch, run `/add-todo Remove the stale foobar alias`. The pl
 
 **Fallback modes:** `--remote` (cloud VM) → `--pr` (creates PR via GitHub API without touching local git) → `--local` (stages into current branch). Force a mode with the corresponding flag.
 
+The flow above is the default `repo-pr` handler. Configure a different destination with `/todo-config` — `gh-issue` and `jira` deliver via a single foreground call (no branch, no PR, no fallback cascade).
+
 ### Process: `/process-todo`
 
 ```bash

@@ -42,16 +42,65 @@ Claude automatically recognizes when you mention follow-up work, deferred cleanu
 While on a feature branch, run `/add-todo Remove the stale foobar alias`. The plugin:
 
 1. Gathers context (branch, diff, PR number)
-2. Drafts a structured todo file with frontmatter + markdown
+2. Drafts a structured todo with frontmatter + markdown
 3. Shows you the draft for review
-4. Dispatches a **remote Claude session** (`claude --remote`) that:
-   - Creates branch `todo/add/<slug>` from main
-   - Writes the todo file
-   - Opens a PR labeled `todo-add`
+4. Resolves the configured **handler** and delivers the todo to it, reporting back the artifact URL
+
+Capture is destination-agnostic — where the todo lands is decided by the handler (see [Destinations](#destinations)). With no config, the default `repo-pr` handler reproduces the original behavior below.
+
+### Destinations
+
+`/add-todo` delivers each todo via a **handler** named in a repo-committed config file, `dev_docs/todos/.todo-config.yml`. Run `/todo-config` to set it up. No config → `repo-pr`.
+
+| Handler    | Lands as                              | Prerequisites                          |
+| ---------- | ------------------------------------- | -------------------------------------- |
+| `repo-pr`  | Markdown file via a `todo-add` PR (default) | `gh` auth (falls back to local staging) |
+| `gh-issue` | A GitHub Issue                        | `gh` auth                              |
+| `jira`     | A Jira work item under an epic        | Atlassian MCP connected in Claude Code |
+
+```yaml
+# dev_docs/todos/.todo-config.yml — pick one handler
+handler: gh-issue
+gh-issue:
+  repo: owner/name      # optional; defaults to current repo
+  labels: [follow-up]   # optional
+  assignees: []         # optional
+```
+
+```yaml
+handler: jira
+jira:
+  site: mycompany.atlassian.net
+  project: PLAT            # required
+  issue_type: Task         # default Task
+  default_epic: PLAT-100   # optional; skips the epic prompt
+  labels: []
+```
+
+The file is committed and shared by the team, so everyone in the repo files to the same place. Unknown handler value → `/add-todo` stops and points you to `/todo-config` (no silent fallback). `/process-todo` and `/list-todos` operate only on file-based `repo-pr` todos; with the external handlers, tracking lives in GitHub or Jira.
+
+#### `repo-pr` handler (default)
+
+Dispatches a **remote Claude session** (`claude --remote`) that:
+- Creates branch `todo/add/<slug>` from main
+- Writes the todo file to `dev_docs/todos/<slug>.md`
+- Opens a PR labeled `todo-add`
 
 **Zero local impact.** No files staged, no branches touched. You keep working. The todo lands on main via auto-merge, completely decoupled from your feature PR.
 
-**Fallback modes:** `--remote` (cloud VM) → `--pr` (creates PR via GitHub API without touching local git) → `--local` (stages into current branch). Force a mode with the corresponding flag.
+**Fallback modes** (`repo-pr` only): `--remote` (cloud VM) → `--subagent` (creates PR via GitHub API without touching local git) → `--local` (stages into current branch). Force a mode with the corresponding flag. The `gh-issue` and `jira` handlers are single foreground calls and don't use this cascade.
+
+#### Adding a new handler
+
+A handler is a markdown file at `commands/handlers/<name>.md` (loaded lazily by `/add-todo` after handler resolution) plus an entry in the valid-handler list in `commands/add-todo.md` step 6. The deferred MCP-backed destinations (Linear, Asana, Todoist, Notion) follow one common pattern: a remote Streamable-HTTP MCP server added with `claude mcp add --transport http <name> <url>` then authenticated with `/mcp`. The handler should look up the create-tool at runtime (`tools/list`) and match by name/description rather than hardcoding it, since vendors rename tools. Verified endpoints for when these are built:
+
+| Destination | MCP endpoint                                  | Create tool (verify at runtime)  |
+| ----------- | --------------------------------------------- | -------------------------------- |
+| Linear      | `https://mcp.linear.app/mcp`                  | `create_issue`                   |
+| Jira (MCP)  | `https://mcp.atlassian.com/v1/mcp/authv2`     | `createJiraIssue`                |
+| Asana       | `https://mcp.asana.com/v2/mcp`                | `create_task`                    |
+| Todoist     | `https://ai.todoist.net/mcp`                  | `add-tasks`                      |
+| Notion      | `https://mcp.notion.com/mcp`                  | `notion-create-pages`            |
 
 The flow above is the default `repo-pr` handler. Configure a different destination with `/todo-config` — `gh-issue` and `jira` deliver via a single foreground call (no branch, no PR, no fallback cascade).
 

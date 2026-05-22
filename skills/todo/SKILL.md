@@ -46,7 +46,21 @@ Reproduces the original behavior. Dispatches an agent to:
 
 **Fallback modes** (automatic cascade, `repo-pr` only): `--remote` (cloud VM) → `--subagent` (GitHub API via sub-agent, zero local git impact) → `--local` (stage into current branch). If `gh auth status` fails, skip straight to `--local`. Do NOT pass `--print` to `claude --remote`. This cascade applies only to `repo-pr`; other handlers are single foreground CLI calls.
 
-> `gh-issue` and `jira` handlers, plus the `/todo-config` setup command, are added in later steps.
+#### Handler: `gh-issue`
+
+Creates a GitHub Issue via `gh issue create` (foreground, no git plumbing). Config:
+
+```yaml
+handler: gh-issue
+gh-issue:
+  repo: owner/name      # optional; defaults to current repo
+  labels: [follow-up]   # optional
+  assignees: []         # optional
+```
+
+Requires working `gh` auth; on auth failure it stops with guidance rather than falling back. The drafted todo's body plus a source-branch/PR footer becomes the issue body; the handler returns the new issue URL.
+
+> The `jira` handler and the `/todo-config` setup command are added in later steps.
 
 ### Process (`/process-todo`)
 

@@ -32,8 +32,10 @@ gh-issue:
 3. **Ensure labels exist.** For each label in `gh-issue.labels`:
 
    ```bash
-   gh label create "<label>" 2>/dev/null   # no-op if it already exists
+   gh label create "<label>" --repo "<repo>" 2>/dev/null   # no-op if it already exists
    ```
+
+   (Omit `--repo` when no `gh-issue.repo` is configured, matching step 4 — labels must be created in the same repo the issue lands in.)
 
 4. **Create the issue.** Map the drafted todo: `--title` ← `title`, body ← step 2, `--label`/`--assignee` ← config, `--repo` ← `gh-issue.repo` if set.
 
@@ -42,7 +44,7 @@ gh-issue:
      --repo "<repo>" \
      --title "<title>" \
      --label "<label>" --label "<label2>" \
-     --assignee "<assignee>" \
+     --assignee "<assignee>" --assignee "<assignee2>" \
      --body-file "<path-to-body>"
    ```
 

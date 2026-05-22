@@ -44,9 +44,39 @@ Reproduces the original behavior. Dispatches an agent to:
 
 **Zero local impact.** No files written, no branches created, no staging.
 
-**Fallback modes** (automatic cascade, `repo-pr` only): `--remote` (cloud VM) → `--subagent` (GitHub API via sub-agent, zero local git impact) → `--local` (stage into current branch). If `gh auth status` fails, skip straight to `--local`. Do NOT pass `--print` to `claude --remote`. This cascade applies only to `repo-pr`; other handlers are single foreground CLI calls.
+**Fallback modes** (automatic cascade, `repo-pr` only): `--remote` (cloud VM) → `--subagent` (GitHub API via sub-agent, zero local git impact) → `--local` (stage into current branch). If `gh auth status` fails, skip straight to `--local`. Do NOT pass `--print` to `claude --remote`. This cascade applies only to `repo-pr`; other handlers are single foreground calls (`gh-issue` via the `gh` CLI, `jira` via the Atlassian MCP).
 
-> `gh-issue` and `jira` handlers, plus the `/todo-config` setup command, are added in later steps.
+#### Handler: `gh-issue`
+
+Creates a GitHub Issue via `gh issue create` (foreground, no git plumbing). Config:
+
+```yaml
+handler: gh-issue
+gh-issue:
+  repo: owner/name      # optional; defaults to current repo
+  labels: [follow-up]   # optional
+  assignees: []         # optional
+```
+
+Requires working `gh` auth; on auth failure it stops with guidance rather than falling back. The drafted todo's body plus a source-branch/PR footer becomes the issue body; the handler returns the new issue URL.
+
+#### Handler: `jira`
+
+Creates a Jira work item via the Atlassian MCP server (`mcp__claude_ai_Atlassian__createJiraIssue`), placed under a selected epic. Config:
+
+```yaml
+handler: jira
+jira:
+  site: mycompany.atlassian.net
+  project: PLAT            # required
+  issue_type: Task         # default Task
+  default_epic: PLAT-100   # optional; skips the epic prompt
+  labels: []
+```
+
+Requires the Atlassian MCP to be connected in Claude Code and the configured `site` to be in the user's accessible resources; stops with guidance otherwise. Lists the project's open epics via JQL for the user to pick a parent, maps the drafted todo to summary + description (with source footer), and returns the `https://<site>/browse/<KEY>` URL.
+
+> The `/todo-config` setup command is added in a later step.
 
 ### Process (`/process-todo`)
 

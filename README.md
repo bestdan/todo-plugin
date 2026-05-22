@@ -56,7 +56,7 @@ Capture is destination-agnostic — where the todo lands is decided by the handl
 | ---------- | ------------------------------------- | -------------------------------------- |
 | `repo-pr`  | Markdown file via a `todo-add` PR (default) | `gh` auth (falls back to local staging) |
 | `gh-issue` | A GitHub Issue                        | `gh` auth                              |
-| `jira`     | A Jira work item under an epic        | `acli` installed + authenticated       |
+| `jira`     | A Jira work item under an epic        | Atlassian MCP connected in Claude Code |
 
 ```yaml
 # dev_docs/todos/.todo-config.yml — pick one handler
@@ -92,7 +92,7 @@ Dispatches a **remote Claude session** (`claude --remote`) that:
 
 #### Adding a new handler
 
-A handler is a `### Handler: <name>` section in `commands/add-todo.md` plus a config block. The deferred MCP-backed destinations (Linear, Asana, Todoist, Notion) follow one common pattern: a remote Streamable-HTTP MCP server added with `claude mcp add --transport http <name> <url>` then authenticated with `/mcp`. The handler should look up the create-tool at runtime (`tools/list`) and match by name/description rather than hardcoding it, since vendors rename tools. Verified endpoints for when these are built:
+A handler is a markdown file at `commands/handlers/<name>.md` (loaded lazily by `/add-todo` after handler resolution) plus an entry in the valid-handler list in `commands/add-todo.md` step 6. The deferred MCP-backed destinations (Linear, Asana, Todoist, Notion) follow one common pattern: a remote Streamable-HTTP MCP server added with `claude mcp add --transport http <name> <url>` then authenticated with `/mcp`. The handler should look up the create-tool at runtime (`tools/list`) and match by name/description rather than hardcoding it, since vendors rename tools. Verified endpoints for when these are built:
 
 | Destination | MCP endpoint                                  | Create tool (verify at runtime)  |
 | ----------- | --------------------------------------------- | -------------------------------- |

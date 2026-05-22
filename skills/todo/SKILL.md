@@ -78,7 +78,7 @@ Requires the Atlassian MCP to be connected in Claude Code and the configured `si
 
 #### Setup: `/todo-config`
 
-Configures the handler and writes `dev_docs/todos/.todo-config.yml`. Shows the current config, prompts for the destination, verifies prerequisites (`gh` auth / `acli` install + auth), and delegates interactive logins to the user. Run it before using a non-default handler.
+Configures the handler and writes `dev_docs/todos/.todo-config.yml`. Shows the current config, prompts for the destination, verifies prerequisites (`gh` auth for `gh-issue`; Atlassian MCP connectivity for `jira`), and delegates interactive logins to the user. Run it before using a non-default handler.
 
 > **`/process-todo` and `/list-todos` only operate on `repo-pr` (file-based) todos.** For the `gh-issue` and `jira` handlers, lifecycle and tracking live in the external tool — read-back/sync is out of scope.
 

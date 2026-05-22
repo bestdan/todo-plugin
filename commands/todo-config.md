@@ -51,10 +51,12 @@ No prerequisites. Mention the optional auto-merge workflow (see `README.md`) for
 
 The `jira` handler delivers via the Atlassian MCP server (`mcp__claude_ai_Atlassian__*`) — no CLI to install.
 
-1. Prompt for `site` (e.g. `mycompany.atlassian.net`).
-2. Verify the Atlassian MCP is reachable and the site is accessible. Call `mcp__claude_ai_Atlassian__getAccessibleAtlassianResources` (no args).
+1. Call `mcp__claude_ai_Atlassian__getAccessibleAtlassianResources` (no args) to discover accessible sites.
    - If the tool errors or returns no resources, **stop** with: "Jira handler needs the Atlassian MCP. Install/connect it in Claude Code settings, then re-run `/todo-config jira`." Do not write the config.
-   - If the response does not include a resource whose `url` matches `https://<site>`, **stop** with: "Configured Jira site `<site>` is not in your accessible Atlassian resources." (List the URLs that were returned.) Do not write the config.
+2. Resolve `site` from the response (extract hostname from each resource's `url`):
+   - Exactly one resource → use that site directly; tell the user which one you picked.
+   - Multiple resources → ask the user which site to use via `AskUserQuestion` (one option per resource).
+   Never prompt the user to type a site that doesn't appear in the accessible-resources list.
 3. Prompt for `project` (key, required), `issue_type` (default `Task`), optional `default_epic` (explicit epic key, not a name), optional `labels`.
 
 > **Interactive auth caveat:** `gh auth login` is interactive — never run it headless from inside this command. Always have the user run it with the `!` session prefix, then continue once they report success.

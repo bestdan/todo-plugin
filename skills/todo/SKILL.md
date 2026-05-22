@@ -44,7 +44,7 @@ Reproduces the original behavior. Dispatches an agent to:
 
 **Zero local impact.** No files written, no branches created, no staging.
 
-**Fallback modes** (automatic cascade, `repo-pr` only): `--remote` (cloud VM) → `--subagent` (GitHub API via sub-agent, zero local git impact) → `--local` (stage into current branch). If `gh auth status` fails, skip straight to `--local`. Do NOT pass `--print` to `claude --remote`. This cascade applies only to `repo-pr`; other handlers are single foreground CLI calls.
+**Fallback modes** (automatic cascade, `repo-pr` only): `--remote` (cloud VM) → `--subagent` (GitHub API via sub-agent, zero local git impact) → `--local` (stage into current branch). If `gh auth status` fails, skip straight to `--local`. Do NOT pass `--print` to `claude --remote`. This cascade applies only to `repo-pr`; other handlers are single foreground calls (`gh-issue` via the `gh` CLI, `jira` via the Atlassian MCP).
 
 #### Handler: `gh-issue`
 

@@ -27,7 +27,7 @@ gh-issue:
    Source PR: #<source_pr>
    ```
 
-   Write it to a temp file or pass via stdin to avoid shell-quoting problems with multi-line markdown.
+   Write it to a temp file to avoid shell-quoting problems with multi-line markdown.
 
 3. **Ensure labels exist.** For each label in `gh-issue.labels`:
 

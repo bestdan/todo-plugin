@@ -1,6 +1,6 @@
 ---
 description: Capture follow-up work as a structured todo, then deliver it to the configured destination (repo PR, GitHub issue, or Jira)
-allowed-tools: Bash(git *), Bash(gh *), Bash(claude *), Bash(date *), Bash(cat *), Glob, Grep, Read, Agent, mcp__claude_ai_Atlassian__getAccessibleAtlassianResources, mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql, mcp__claude_ai_Atlassian__createJiraIssue
+allowed-tools: Bash(git *), Bash(gh *), Bash(claude *), Bash(date *), Bash(cat *), Bash(find *), Bash(mkdir *), Glob, Grep, Read, Agent, mcp__claude_ai_Atlassian__getAccessibleAtlassianResources, mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql, mcp__claude_ai_Atlassian__createJiraIssue
 argument-hint: [description of the follow-up work]
 ---
 
@@ -105,7 +105,7 @@ Resolve the handler name:
 
 Each handler's full instructions live in a sibling file: `commands/handlers/<handler>.md`. Use the **Read** tool to load only the resolved handler's file, then follow it, passing the drafted todo from step 5. The handler file owns everything about how the todo lands — preflight checks, dispatch, parsing, and the artifact URL it returns.
 
-If a relative path doesn't resolve, find the file with **Glob** (`**/todo-plugin/commands/handlers/<handler>.md`) and Read the result.
+If a relative path doesn't resolve, find the file with **Glob** (`**/commands/handlers/<handler>.md`) and Read the result.
 
 Do not embed handler logic here; do not read handler files for handlers other than the resolved one.
 

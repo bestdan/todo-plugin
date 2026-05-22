@@ -52,7 +52,7 @@ jira:
    - `description`: the composed description from step 3
    - `contentFormat`: `"markdown"`
    - `parent`: the chosen `<EPIC-KEY>` (omit entirely if the user picked "none")
-   - `additional_fields`: `{ "labels": [...jira.labels] }` (omit if no labels configured)
+   - `additional_fields`: `{ "labels": <jira.labels list> }` (omit if no labels configured)
 
 5. **Return the URL.** The response wraps the new issue as `issues.nodes[0]`. Return `issues.nodes[0].webUrl` directly as this handler's artifact URL for `/add-todo` step 8. (Fallback: build `https://<jira.site>/browse/<issues.nodes[0].key>` if `webUrl` is missing.)
 

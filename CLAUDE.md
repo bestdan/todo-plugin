@@ -11,6 +11,7 @@ A Claude Code plugin (`bestdan/todo-plugin`) that captures follow-up work during
 - `.claude-plugin/plugin.json` — plugin identity (name, version, author)
 - `.claude-plugin/marketplace.json` — marketplace listing
 - `commands/` — slash commands (markdown files with frontmatter declaring allowed tools)
+- `commands/handlers/` — one markdown file per `/add-todo` delivery handler (`repo-pr.md`, `gh-issue.md`, `jira.md`). Loaded lazily by `/add-todo` after handler resolution so users only pay for the prose of the handler they've configured. Adding a new handler = new file here + add the name to the valid-values list in `add-todo.md` step 6.
 - `skills/todo/SKILL.md` — auto-trigger skill that activates when users mention follow-up work
 
 ## Commands

@@ -1,6 +1,6 @@
 ---
 description: Configure where /add-todo delivers todos (repo PR, GitHub issue, or Jira)
-allowed-tools: Bash(git *), Bash(gh *), Bash(cat *), Bash(mkdir *), Read, Write, mcp__claude_ai_Atlassian__getAccessibleAtlassianResources
+allowed-tools: Bash(git *), Bash(gh *), Bash(cat *), Bash(mkdir *), Read, Write, mcp__claude_ai_Atlassian__getAccessibleAtlassianResources, mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql
 argument-hint: [repo-pr | gh-issue | jira]
 ---
 
@@ -57,7 +57,21 @@ The `jira` handler delivers via the Atlassian MCP server (`mcp__claude_ai_Atlass
    - Exactly one resource → use that site directly; tell the user which one you picked.
    - Multiple resources → ask the user which site to use via `AskUserQuestion` (one option per resource).
    Never prompt the user to type a site that doesn't appear in the accessible-resources list.
-3. Prompt for `project` (key, required), `issue_type` (default `Task`), optional `default_epic` (explicit epic key, not a name), optional `labels`.
+3. Prompt for `project` (key, required) and `issue_type` (default `Task`). Optional `labels`.
+4. **Resolve `default_epic` against real epics — do not accept free-text.** This field is optional but, when set, must be a valid epic key in the chosen project (otherwise it silently breaks `/add-todo`, which uses it to skip the per-todo epic prompt).
+
+   Call `mcp__claude_ai_Atlassian__searchJiraIssuesUsingJql` with:
+   - `cloudId`: `<site>`
+   - `jql`: `project = "<project>" AND issuetype = Epic AND statusCategory != Done ORDER BY updated DESC`
+   - `fields`: `["summary"]`
+   - `maxResults`: 50
+
+   Present the result via `AskUserQuestion` (header: "Default epic"):
+   - One option per epic, labeled `<KEY> — <summary>` (cap at 3 epic options so "None" and "Other" fit within the 4-option limit; show the 3 most recently updated).
+   - A `"None — prompt me per-todo"` option (this is the recommended default if the user is unsure).
+   - "Other" lets the user type a specific key; if they pick "Other", validate the typed value by calling `searchJiraIssuesUsingJql` again with `jql: project = "<project>" AND key = "<TYPED>" AND issuetype = Epic`. If the result is empty, push back ("`<TYPED>` is not an epic key in `<project>`") and re-ask. Do not write the config with an unvalidated key.
+
+   If the user picks "None — prompt me per-todo", omit `default_epic` from the written config. Otherwise write the validated key as-is.
 
 > **Interactive auth caveat:** `gh auth login` is interactive — never run it headless from inside this command. Always have the user run it with the `!` session prefix, then continue once they report success.
 

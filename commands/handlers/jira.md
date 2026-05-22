@@ -2,7 +2,7 @@
 
 Creates a Jira work item via the Atlassian MCP server (`mcp__claude_ai_Atlassian__*`). Foreground call, no git plumbing, no CLI install. The new ticket is placed under a selected epic.
 
-> **Required interaction:** step 2 (epic selection) MUST prompt the user via `AskUserQuestion` unless `jira.default_epic` is set in config. This applies in auto mode too. If you find yourself about to call `createJiraIssue` without having asked, stop and go back to step 2.
+> **Required interaction:** step 2 (epic selection) MUST prompt the user via `AskUserQuestion` unless `jira.default_epic` is set in config. This applies in auto mode too. Treat a missing or empty `jira.default_epic` (including `null`, `""`, or the key being absent from the config block) as "not set" — you MUST prompt. If you find yourself about to call `createJiraIssue` without having asked AND without a non-empty `jira.default_epic`, stop and go back to step 2.
 
 Config block in `dev_docs/todos/.todo-config.yml`:
 

@@ -48,6 +48,7 @@ Auto-populate these fields:
 - `status`: `unclaimed`
 - `expires`: 30 days from today
 - `priority`: `low` (default, ask user if they want different)
+- `size`: estimated task size — `small` / `medium` / `large` (infer from scope, ask user to confirm)
 
 From conversation context and diff, draft:
 - `title`: from user description or `$ARGUMENTS`
@@ -59,7 +60,7 @@ From conversation context and diff, draft:
 
 ### 5. Present for review
 
-Show the user the full draft and ask for confirmation. They can adjust priority, add/remove files, or edit the task steps.
+Show the user the full draft and ask for confirmation. They can adjust priority, size, add/remove files, or edit the task steps.
 
 If the resolved handler (step 6) is `repo-pr`, also ask: **"File for later, or fix now?"**
 - **File for later** (default): creates the todo file on main for `/process-todo` to pick up
@@ -76,6 +77,7 @@ Once the user confirms, you hold a normalized **drafted todo** that every handle
 | `title`         | Imperative, < 80 chars                                              |
 | `body`          | The Context / Task / Acceptance Criteria markdown                   |
 | `priority`      | `low` / `medium` / `high`                                           |
+| `size`          | `small` / `medium` / `large` — estimated task size                  |
 | `tags`          | List of freeform tags                                               |
 | `slug`          | Kebab-case slug from step 2                                         |
 | `created`       | ISO date                                                            |

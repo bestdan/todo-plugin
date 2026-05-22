@@ -23,14 +23,14 @@ A Claude Code plugin (`bestdan/todo-plugin`) that captures follow-up work during
 
 ## Key conventions
 
-- **Handler abstraction:** `/add-todo` separates capture from delivery. After drafting, it resolves a *handler* from `dev_docs/todos/.todo-config.yml` and hands it a normalized drafted todo (`title`, `body`, `priority`, `tags`, `slug`, `created`, `expires`, `source_branch`, `source_pr`, `related_files`). Each handler must return the created artifact's URL.
+- **Handler abstraction:** `/add-todo` separates capture from delivery. After drafting, it resolves a *handler* from `dev_docs/todos/.todo-config.yml` and hands it a normalized drafted todo (`title`, `body`, `priority`, `size`, `tags`, `slug`, `created`, `expires`, `source_branch`, `source_pr`, `related_files`). Each handler must return the created artifact's URL.
 - **Config resolution:** file absent or no `handler:` → `repo-pr` (preserves original behavior). Unknown handler value → stop with an error pointing to `/todo-config`; never silently fall back. Valid: `repo-pr`, `gh-issue`, `jira`.
 - `repo-pr` is the only handler that does git plumbing and uses the remote/subagent/local cascade; CLI handlers (`gh-issue`, `jira`) are single foreground calls.
 - Todo files live in `dev_docs/todos/` in the **target repo** (not this plugin repo). Scanning is always recursive (`**/*.md`). The `repo-pr` handler is file-based; `/process-todo` and `/list-todos` only operate on it.
 - Branch naming: `todo/add/<slug>` for adding todos, `todo/<slug>` for processing them.
 - `repo-pr` dispatch modes in priority order: `--remote` (cloud VM) → `--subagent` (GitHub API, zero local impact) → `--local` (stage into current branch).
 - PR labels: `todo-add` for addition PRs, `todo-loop` for processing PRs.
-- Frontmatter fields: `title`, `priority` (low/medium/high), `status` (unclaimed/claimed/blocked), `created`, `source_branch`, `source_pr`, `related_files`, `expires` (30-day default), `tags`.
+- Frontmatter fields: `title`, `priority` (low/medium/high), `size` (small/medium/large), `status` (unclaimed/claimed/blocked), `created`, `source_branch`, `source_pr`, `related_files`, `expires` (30-day default), `tags`.
 - Remote sessions don't have plugins installed — all instructions must be embedded inline in the `claude --remote` prompt.
 
 ## Editing commands/skills
